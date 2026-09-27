@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Label Roster</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #fff; --text: #1d1d1f; --muted: #6b6b70;
+    --border: #e2e2de; --accent: #5b4bdb; --accent-soft: #eeebff;
+    --ok: #1f7a4d; --warn: #9a6200; --danger: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151517; --panel: #1f1f22; --text: #ececef; --muted: #9a9aa2;
+      --border: #333338; --accent: #9d92ff; --accent-soft: #2a2745;
+      --ok: #5cc594; --warn: #e2a846; --danger: #f2837a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+         background: var(--bg); color: var(--text); }
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+           border-bottom: 1px solid var(--border); background: var(--panel); }
+  header h1 { font-size: 16px; margin: 0; }
+  nav button { background: none; border: 0; padding: 6px 10px; border-radius: 6px;
+               color: var(--muted); cursor: pointer; font: inherit; }
+  nav button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  main { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(360px, 1.3fr);
+         gap: 16px; padding: 16px 20px; max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 12px 16px; } }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  input, select, textarea { font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; width: 100%; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  #search { font-size: 16px; padding: 10px 12px; }
+  .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 10px 0; }
+  .count { color: var(--muted); font-size: 12px; margin: 6px 2px; }
+  ul.results { list-style: none; margin: 0; padding: 0; }
+  ul.results li { padding: 9px 10px; border-radius: 8px; cursor: pointer; display: flex;
+                  justify-content: space-between; gap: 10px; }
+  ul.results li:hover { background: var(--bg); }
+  ul.results li.selected { background: var(--accent-soft); }
+  .name { font-weight: 600; }
+  .sub { color: var(--muted); font-size: 12px; }
+  .pill { font-size: 11px; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--border);
+          color: var(--muted); white-space: nowrap; align-self: center; }
+  .pill.onboarding { color: var(--warn); border-color: currentColor; }
+  .pill.inactive { color: var(--danger); border-color: currentColor; }
+  h2 { font-size: 20px; margin: 0 0 4px; }
+  h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 18px 0 6px; }
+  dl { display: grid; grid-template-columns: 140px 1fr; gap: 4px 12px; margin: 0; }
+  dt { color: var(--muted); }
+  dd { margin: 0; }
+  a { color: var(--accent); }
+  .row { display: flex; gap: 8px; align-items: center; justify-content: space-between;
+         padding: 5px 0; border-bottom: 1px solid var(--border); }
+  .row:last-child { border-bottom: 0; }
+  .inline-form { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .inline-form > * { flex: 1 1 120px; }
+  button.btn { font: inherit; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border);
+               background: var(--panel); color: var(--text); cursor: pointer; flex: 0 0 auto; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { color: var(--danger); }
+  button.x { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 16px; }
+  button.x:hover { color: var(--danger); }
+  .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .edit-grid label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+  .edit-grid .wide { grid-column: 1 / -1; }
+  .actions { display: flex; gap: 8px; margin-top: 14px; }
+  .empty { color: var(--muted); padding: 30px 10px; text-align: center; }
+  .error { color: var(--danger); margin-top: 8px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Label Roster</h1>
+  <nav>
+    <button id="tab-bands" class="active">Bands</button>
+    <button id="tab-docs">Label documents</button>
+  </nav>
+</header>
+
+<main id="bands-view">
+  <section class="panel">
+    <input id="search" type="search" placeholder="Search bands, members, genres, cities, interns…" autofocus>
+    <div class="filters">
+      <select id="f-status"><option value="">Any status</option><option>active</option><option>onboarding</option><option>inactive</option></select>
+      <select id="f-genre"><option value="">Any genre</option></select>
+      <select id="f-state"><option value="">Any state</option></select>
+      <select id="f-intern"><option value="">Any intern</option></select>
+      <select id="f-missing"><option value="">Missing…</option></select>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="count" id="count"></div>
+      <button class="btn" id="new-band">+ New band</button>
+    </div>
+    <ul class="results" id="results"></ul>
+  </section>
+  <section class="panel" id="detail"><div class="empty">Select a band to see its details.</div></section>
+</main>
+
+<main id="docs-view" hidden>
+  <section class="panel" style="grid-column:1/-1">
+    <h3 style="margin-top:0">Important label documents</h3>
+    <div id="docs"></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const LINK_KINDS = ["band_sheet", "epk", "epk_covers", "artist_alignment", "schedule",
+  "instagram", "x", "youtube", "tiktok", "spotify", "bandcamp", "website", "other"];
+const pretty = (v) => v == null ? "—" : String(v).replace(/_/g, " ");
+
+let selectedId = null;
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const detail = Array.isArray(body.detail) ? body.detail.map(d => d.msg).join("; ") : body.detail;
+    throw new Error(detail || res.statusText);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+async function loadFacets() {
+  const f = await api("/api/facets");
+  const fill = (el, values, fmt = (v) => v) => {
+    const keep = el.value;
+    el.length = 1;
+    for (const v of values) el.add(new Option(fmt(v), v));
+    el.value = keep;
+  };
+  fill($("f-genre"), f.genres);
+  fill($("f-state"), f.states);
+  fill($("f-intern"), f.interns);
+  fill($("f-missing"), [...new Set([...f.link_kinds, "epk", "instagram"])].sort(), (k) => "Missing " + pretty(k));
+}
+
+async function search() {
+  const params = new URLSearchParams();
+  const add = (k, v) => v && params.set(k, v);
+  add("q", $("search").value);
+  add("status", $("f-status").value);
+  add("genre", $("f-genre").value);
+  add("state", $("f-state").value);
+  add("intern", $("f-intern").value);
+  add("missing", $("f-missing").value);
+  const bands = await api("/api/bands?" + params);
+  $("count").textContent = `${bands.length} band${bands.length === 1 ? "" : "s"}`;
+  $("results").innerHTML = bands.map(b => `
+    <li data-id="${b.id}" class="${b.id === selectedId ? "selected" : ""}">
+      <div>
+        <div class="name">${esc(b.name)}</div>
+        <div class="sub">${esc([b.genres, [b.city, b.state].filter(Boolean).join(", "), b.intern && "Intern: " + b.intern].filter(Boolean).join(" · "))}</div>
+      </div>
+      ${b.status !== "active" ? `<span class="pill ${esc(b.status)}">${esc(b.status)}</span>` : ""}
+    </li>`).join("") || `<li class="empty" style="cursor:default">No bands match.</li>`;
+}
+
+let timer;
+const debouncedSearch = () => { clearTimeout(timer); timer = setTimeout(search, 120); };
+$("search").addEventListener("input", debouncedSearch);
+for (const id of ["f-status", "f-genre", "f-state", "f-intern", "f-missing"]) $(id).addEventListener("change", search);
+$("results").addEventListener("click", (e) => {
+  const li = e.target.closest("li[data-id]");
+  if (li) showBand(Number(li.dataset.id));
+});
+
+async function showBand(id) {
+  selectedId = id;
+  document.querySelectorAll("#results li").forEach(li => li.classList.toggle("selected", Number(li.dataset.id) === id));
+  const b = await api(`/api/bands/${id}`);
+  const yn = (v) => pretty(v);
+  $("detail").innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
+      <div>
+        <h2>${esc(b.name)}</h2>
+        <div class="sub">${esc(b.genres.join(" / ") || "No genre set")}</div>
+      </div>
+      <button class="btn" id="edit-btn">Edit</button>
+    </div>
+    <h3>Details</h3>
+    <dl>
+      <dt>Status</dt><dd>${esc(b.status)}</dd>
+      <dt>Location</dt><dd>${esc([b.city, b.state].filter(Boolean).join(", ") || "—")}</dd>
+      <dt>Intern</dt><dd>${esc(b.intern || "—")}</dd>
+      <dt>SB booking</dt><dd>${esc(yn(b.sb_booking))}</dd>
+      <dt>SB management</dt><dd>${esc(yn(b.sb_management))}${b.external_manager ? ` (managed by ${esc(b.external_manager)})` : ""}</dd>
+      <dt>Private parties</dt><dd>${esc(yn(b.private_parties))}</dd>
+      ${b.notes ? `<dt>Notes</dt><dd style="white-space:pre-wrap">${esc(b.notes)}</dd>` : ""}
+    </dl>
+
+    <h3>Links</h3>
+    ${b.links.map(l => `<div class="row">
+        <span><span class="sub">${esc(pretty(l.kind))}</span> &nbsp;<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label || l.url)}</a></span>
+        <button class="x" data-del-link="${l.id}" title="Remove link">×</button></div>`).join("") || `<div class="sub">No links yet.</div>`}
+    <form class="inline-form" id="link-form">
+      <select name="kind">${LINK_KINDS.map(k => `<option value="${k}">${pretty(k)}</option>`).join("")}</select>
+      <input name="url" type="url" placeholder="https://…" required style="flex:3 1 200px">
+      <button class="btn">Add link</button>
+    </form>
+
+    <h3>Members</h3>
+    ${b.members.map(m => `<div class="row">
+        <span><strong>${esc(m.name)}</strong>${m.role ? ` <span class="sub">${esc(m.role)}</span>` : ""}
+          ${m.email ? `<br><a href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ""}${m.phone ? ` <span class="sub">${esc(m.phone)}</span>` : ""}
+          ${m.other_bands.length ? `<br><span class="sub">Also in: ${esc(m.other_bands.join(", "))}</span>` : ""}</span>
+        <button class="x" data-del-member="${m.id}" title="Remove member">×</button></div>`).join("") || `<div class="sub">No members yet.</div>`}
+    <form class="inline-form" id="member-form">
+      <input name="name" placeholder="Name" required>
+      <input name="role" placeholder="Role (vocals, drums…)">
+      <input name="email" type="email" placeholder="Email">
+      <input name="phone" placeholder="Phone">
+      <button class="btn">Add member</button>
+    </form>
+    <div class="error" id="detail-error"></div>`;
+
+  $("edit-btn").onclick = () => editBand(b);
+  $("link-form").onsubmit = (e) => submitForm(e, `/api/bands/${id}/links`);
+  $("member-form").onsubmit = (e) => submitForm(e, `/api/bands/${id}/members`);
+  $("detail").querySelectorAll("[data-del-link]").forEach(btn => btn.onclick = () =>
+    removeThen(`/api/links/${btn.dataset.delLink}`, id));
+  $("detail").querySelectorAll("[data-del-member]").forEach(btn => btn.onclick = () =>
+    removeThen(`/api/members/${btn.dataset.delMember}`, id));
+}
+
+async function submitForm(e, path) {
+  e.preventDefault();
+  const data = Object.fromEntries([...new FormData(e.target)].filter(([, v]) => v.trim()));
+  try {
+    await api(path, { method: "POST", body: JSON.stringify(data) });
+    await showBand(selectedId);
+    await Promise.all([loadFacets(), search()]);
+  } catch (err) { $("detail-error").textContent = err.message; }
+}
+
+async function removeThen(path, bandId) {
+  await api(path, { method: "DELETE" });
+  await showBand(bandId);
+  await Promise.all([loadFacets(), search()]);
+}
+
+function editBand(b) {
+  const isNew = !b;
+  b = b || { name: "", status: "active", genres: [] };
+  const opt = (values, current) => `<option value="">—</option>` +
+    values.map(v => `<option value="${v}" ${v === current ? "selected" : ""}>${pretty(v)}</option>`).join("");
+  const text = (name, label, cls = "") =>
+    `<label class="${cls}">${label}<input name="${name}" value="${esc(b[name] || "")}"></label>`;
+  const yn = ["yes", "no", "in_process", "onboarding"];
+  $("detail").innerHTML = `
+    <h2>${isNew ? "New band" : "Edit " + esc(b.name)}</h2>
+    <form id="band-form" class="edit-grid" style="margin-top:12px">
+      ${text("name", "Name", "wide")}
+      <label>Status<select name="status">${["active", "onboarding", "inactive"].map(s =>
+        `<option ${s === b.status ? "selected" : ""}>${s}</option>`).join("")}</select></label>
+      ${text("intern", "Intern assigned")}
+      <label class="wide">Genres (separate with /)<input name="genres" value="${esc(b.genres.join(" / "))}"></label>
+      ${text("city", "City")}
+      ${text("state", "State (2 letters)")}
+      <label>SB booking<select name="sb_booking">${opt(yn, b.sb_booking)}</select></label>
+      <label>SB management<select name="sb_management">${opt(yn, b.sb_management)}</select></label>
+      ${text("external_manager", "External manager")}
+      <label>Private parties<select name="private_parties">${opt(["yes", "no", "possibly"], b.private_parties)}</select></label>
+      <label class="wide">Notes<textarea name="notes" rows="4">${esc(b.notes || "")}</textarea></label>
+    </form>
+    <div class="actions">
+      <button class="btn primary" id="save">Save</button>
+      <button class="btn" id="cancel">Cancel</button>
+      ${isNew ? "" : `<button class="btn danger" id="delete" style="margin-left:auto">Delete band</button>`}
+    </div>
+    <div class="error" id="detail-error"></div>`;
+
+  $("save").onclick = async () => {
+    const fd = Object.fromEntries(new FormData($("band-form")));
+    const payload = {};
+    for (const [k, v] of Object.entries(fd)) payload[k] = v.trim() || null;
+    payload.genres = (fd.genres || "").split("/").map(s => s.trim()).filter(Boolean);
+    if (payload.state) payload.state = payload.state.toUpperCase();
+    try {
+      const saved = await api(isNew ? "/api/bands" : `/api/bands/${b.id}`,
+        { method: isNew ? "POST" : "PUT", body: JSON.stringify(payload) });
+      await Promise.all([loadFacets(), search()]);
+      showBand(saved.id);
+    } catch (err) { $("detail-error").textContent = err.message; }
+  };
+  $("cancel").onclick = () => isNew
+    ? ($("detail").innerHTML = `<div class="empty">Select a band to see its details.</div>`)
+    : showBand(b.id);
+  if (!isNew) $("delete").onclick = async () => {
+    if (!confirm(`Delete ${b.name}? This removes its links and member list too.`)) return;
+    await api(`/api/bands/${b.id}`, { method: "DELETE" });
+    selectedId = null;
+    $("detail").innerHTML = `<div class="empty">Band deleted.</div>`;
+    await Promise.all([loadFacets(), search()]);
+  };
+}
+$("new-band").onclick = () => { selectedId = null; editBand(null); };
+
+async function loadDocs() {
+  const docs = await api("/api/documents");
+  $("docs").innerHTML = docs.map(d => `<div class="row"><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.title)}</a></div>`).join("")
+    || `<div class="sub">No documents.</div>`;
+}
+
+function switchTab(docs) {
+  $("tab-bands").classList.toggle("active", !docs);
+  $("tab-docs").classList.toggle("active", docs);
+  $("bands-view").hidden = docs;
+  $("docs-view").hidden = !docs;
+  if (docs) loadDocs();
+}
+$("tab-bands").onclick = () => switchTab(false);
+$("tab-docs").onclick = () => switchTab(true);
+
+loadFacets().then(search);
+</script>
+</body>
+</html>

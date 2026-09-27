@@ -1,0 +1,8 @@
+# The label's real data stays out of git: the spreadsheet has private
+# Google Drive links, and the database is built from it.
+*.xlsx
+*.db
+*.db-journal
+__pycache__/
+.pytest_cache/
+.venv/
