@@ -1,0 +1,14 @@
+#!/bin/sh
+# Run a labeldb admin command on the server as the service user, e.g.
+#   sudo labeldb users add friend@example.com
+#   sudo labeldb users list
+#   sudo labeldb importer /var/lib/labeldb/import.xlsx --replace
+#   sudo labeldb backup /var/lib/labeldb/backups
+# Running as `labeldb` keeps the database owned by the service user.
+set -e
+[ $# -ge 1 ] || { echo "usage: labeldb {users|importer|backup} ..." >&2; exit 1; }
+module="$1"; shift
+case "$module" in users|importer|backup) ;; *) echo "unknown command: $module" >&2; exit 1 ;; esac
+cd /opt/labeldb
+exec sudo -u labeldb env LABEL_DB=/var/lib/labeldb/label.db \
+    /opt/labeldb/.venv/bin/python -m "labeldb.$module" "$@"

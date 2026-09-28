@@ -64,6 +64,23 @@ CREATE TABLE IF NOT EXISTS documents (
     url    TEXT NOT NULL
 );
 
+-- Login. Passwords are stored only as salted scrypt hashes (see auth.py).
+CREATE TABLE IF NOT EXISTS users (
+    id             INTEGER PRIMARY KEY,
+    email          TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    password_hash  TEXT NOT NULL,
+    created_at     INTEGER NOT NULL DEFAULT (CAST(strftime('%s', 'now') AS INTEGER))
+);
+
+-- One row per signed-in browser. We store a SHA-256 of the cookie value,
+-- not the value itself, so a leaked copy of the database can't be used
+-- to impersonate anyone.
+CREATE TABLE IF NOT EXISTS sessions (
+    token_hash  TEXT PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at  INTEGER NOT NULL
+);
+
 -- Full-text index. One row per band holding every searchable string for
 -- that band (name, genres, city, intern, member names, notes, ...).
 -- Maintained by db.reindex_band() whenever a band or its children change.

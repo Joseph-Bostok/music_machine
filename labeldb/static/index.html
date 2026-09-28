@@ -80,6 +80,8 @@
     <button id="tab-bands" class="active">Bands</button>
     <button id="tab-docs">Label documents</button>
   </nav>
+  <span class="sub" id="whoami" style="margin-left:auto"></span>
+  <button class="btn" id="logout">Sign out</button>
 </header>
 
 <main id="bands-view">
@@ -120,6 +122,10 @@ let selectedId = null;
 
 async function api(path, options = {}) {
   const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
+  if (res.status === 401) {  // session expired or signed out elsewhere
+    location.href = "/login";
+    throw new Error("Not signed in");
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const detail = Array.isArray(body.detail) ? body.detail.map(d => d.msg).join("; ") : body.detail;
@@ -319,6 +325,11 @@ function switchTab(docs) {
 $("tab-bands").onclick = () => switchTab(false);
 $("tab-docs").onclick = () => switchTab(true);
 
+$("logout").onclick = async () => {
+  await fetch("/api/logout", { method: "POST" });
+  location.href = "/login";
+};
+api("/api/me").then(me => $("whoami").textContent = me.email);
 loadFacets().then(search);
 </script>
 </body>

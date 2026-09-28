@@ -1,0 +1,24 @@
+[Unit]
+Description=Label Roster web app
+After=network.target
+
+[Service]
+User=labeldb
+Group=labeldb
+WorkingDirectory=/opt/labeldb
+Environment=LABEL_DB=/var/lib/labeldb/label.db
+# Listens only on localhost; Caddy is the only thing exposed to the internet.
+# --proxy-headers trusts Caddy's X-Forwarded-Proto so the app knows the
+# original request was HTTPS and marks the session cookie Secure.
+ExecStart=/opt/labeldb/.venv/bin/uvicorn labeldb.app:app --host 127.0.0.1 --port 8000 --proxy-headers
+Restart=on-failure
+
+# Sandboxing: the app can write only to its data directory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/labeldb
+
+[Install]
+WantedBy=multi-user.target

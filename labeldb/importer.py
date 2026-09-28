@@ -245,7 +245,8 @@ def load(conn, bands, documents):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("xlsx", type=Path)
-    parser.add_argument("--db", type=Path, default=db.DEFAULT_DB_PATH)
+    parser.add_argument("--db", type=Path, default=Path(db.default_path()),
+                        help="database file (default: $LABEL_DB or ./label.db)")
     parser.add_argument("--replace", action="store_true",
                         help="delete existing data before importing")
     args = parser.parse_args(argv)
@@ -257,6 +258,8 @@ def main(argv=None):
     if conn.execute("SELECT COUNT(*) FROM bands").fetchone()[0]:
         if not args.replace:
             sys.exit(f"{args.db} already has data. Re-run with --replace to overwrite it.")
+        # Users and sessions are deliberately kept: re-importing band data
+        # shouldn't lock everyone out.
         for table in ("band_search", "documents", "links", "band_members",
                       "people", "band_genres", "genres", "bands"):
             conn.execute(f"DELETE FROM {table}")

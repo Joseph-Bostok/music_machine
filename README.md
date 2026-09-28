@@ -20,18 +20,29 @@ This creates `label.db` and prints a list of things in the sheet that need
 a human to fix, such as cells that say "EPK" but have no link. Re-running
 refuses to overwrite existing data unless you pass `--replace`.
 
+## Create a login
+
+```bash
+python -m labeldb.users add you@example.com
+```
+
+It prompts for a password. The same command also supports `passwd`, `remove` and `list`.
+
 ## Run the app
 
 ```bash
 uvicorn labeldb.app:app
 ```
 
-Open http://127.0.0.1:8000. Search matches as you type across band names,
+Open http://127.0.0.1:8000 and sign in. Search matches as you type across band names,
 members, genres, cities, interns, managers and notes. The dropdowns filter by
 status, genre, state and intern. "Missing…" finds bands without a given
 link type (for example, every band with no EPK).
 
-API docs are at http://127.0.0.1:8000/docs.
+API docs are at http://127.0.0.1:8000/docs (sign in first).
+
+To host it privately with a shareable link, see [DEPLOY.md](DEPLOY.md).
+It covers a free-tier Google Cloud VM with HTTPS and nightly backups.
 
 ## Layout
 
@@ -41,7 +52,11 @@ API docs are at http://127.0.0.1:8000/docs.
 | `labeldb/importer.py` | Reads the .xlsx (including hyperlinks behind cell text) and loads it |
 | `labeldb/db.py` | Connection setup, search indexing, shared queries |
 | `labeldb/app.py` | FastAPI JSON API that also serves the GUI |
-| `labeldb/static/index.html` | The GUI: plain HTML/JS, no build step |
+| `labeldb/auth.py` | Password hashing (scrypt), sessions, login rate limiting |
+| `labeldb/users.py` | Command-line account management |
+| `labeldb/backup.py` | Consistent snapshots of the database, with optional Cloud Storage upload |
+| `labeldb/static/` | The GUI and sign-in page: plain HTML/JS, no build step |
+| `deploy/` | Server setup script, systemd units, admin wrapper |
 
 ## Tests
 

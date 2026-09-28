@@ -1,0 +1,12 @@
+[Unit]
+Description=Back up the Label Roster database
+
+[Service]
+Type=oneshot
+User=labeldb
+Group=labeldb
+WorkingDirectory=/opt/labeldb
+Environment=LABEL_DB=/var/lib/labeldb/label.db
+# setup.sh writes LABEL_BACKUP_BUCKET here if you give it a bucket name.
+EnvironmentFile=-/etc/labeldb/backup.env
+ExecStart=/opt/labeldb/.venv/bin/python -m labeldb.backup /var/lib/labeldb/backups --keep 14

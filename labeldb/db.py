@@ -1,18 +1,26 @@
 """Database access: connection setup, search indexing, and shared queries."""
 
+import os
 import re
 import sqlite3
 from pathlib import Path
 
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
-DEFAULT_DB_PATH = Path("label.db")
 
 
-def connect(path=DEFAULT_DB_PATH):
-    conn = sqlite3.connect(path, check_same_thread=False)
+def default_path():
+    """Database location: $LABEL_DB if set (the server sets it), else ./label.db."""
+    return os.environ.get("LABEL_DB", "label.db")
+
+
+def connect(path=None):
+    conn = sqlite3.connect(path or default_path(), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     # Foreign keys are off by default in SQLite and must be enabled per connection.
     conn.execute("PRAGMA foreign_keys = ON")
+    # Write-ahead logging: readers never block on a writer, and a crash
+    # mid-write can't corrupt the file. (No-op for in-memory databases.)
+    conn.execute("PRAGMA journal_mode = WAL")
     return conn
 
 

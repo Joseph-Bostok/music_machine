@@ -1,21 +1,3 @@
-import pytest
-from fastapi.testclient import TestClient
-
-from labeldb import db, importer
-from labeldb.app import create_app
-
-
-@pytest.fixture
-def client(sample_xlsx, tmp_path):
-    path = tmp_path / "label.db"
-    conn = db.connect(path)
-    db.init_db(conn)
-    bands, documents, _ = importer.read_sheet(sample_xlsx)
-    importer.load(conn, bands, documents)
-    conn.close()
-    return TestClient(create_app(path))
-
-
 def names(resp):
     return [b["name"] for b in resp.json()]
 

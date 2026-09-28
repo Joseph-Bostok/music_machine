@@ -3,18 +3,17 @@
 Run with:
     uvicorn labeldb.app:app --reload
 then open http://127.0.0.1:8000. Set LABEL_DB to use a database other
-than ./label.db.
+than ./label.db. Create a login first with `python -m labeldb.users add`.
 """
 
-import os
 from pathlib import Path
 from typing import Literal, Optional
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
-from labeldb import db
+from labeldb import auth, db
 
 STATIC_DIR = Path(__file__).with_name("static")
 
@@ -43,6 +42,11 @@ class LinkIn(BaseModel):
     label: Optional[str] = None
 
 
+class LoginIn(BaseModel):
+    email: str
+    password: str
+
+
 class MemberIn(BaseModel):
     name: str = Field(min_length=1)
     role: Optional[str] = None
@@ -54,12 +58,75 @@ BAND_COLUMNS = [f for f in BandIn.model_fields if f != "genres"]
 
 
 def create_app(db_path=None):
-    conn = db.connect(db_path or os.environ.get("LABEL_DB", db.DEFAULT_DB_PATH))
     # Handlers are `async def` so they run one at a time on the event loop.
     # They share this single connection, and sync handlers would run
     # concurrently in a thread pool and could interleave transactions.
+    conn = db.connect(db_path)
     db.init_db(conn)
     app = FastAPI(title="Label Roster")
+    limiter = auth.LoginLimiter()
+
+    # --- login gate ---------------------------------------------------------
+
+    PUBLIC_PATHS = {"/login", "/api/login"}
+
+    @app.middleware("http")
+    async def require_login(request: Request, call_next):
+        """Every route except the login page needs a valid session. Doing
+        this in one middleware means a new endpoint can't forget the check."""
+        if request.url.path in PUBLIC_PATHS:
+            response = await call_next(request)
+        elif (user := auth.user_for_token(conn, request.cookies.get(auth.SESSION_COOKIE))) is None:
+            if request.url.path.startswith("/api/"):
+                response = JSONResponse({"detail": "Not signed in"}, status_code=401)
+            else:
+                response = RedirectResponse("/login", status_code=303)
+        else:
+            request.state.user = user
+            response = await call_next(request)
+        # Never let the browser cache pages or data: otherwise after signing
+        # out, Back or a cached "/" could still show roster information.
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    @app.get("/login", include_in_schema=False)
+    async def login_page():
+        return FileResponse(STATIC_DIR / "login.html")
+
+    @app.post("/api/login")
+    async def login(creds: LoginIn, request: Request, response: Response):
+        if limiter.blocked(creds.email):
+            raise HTTPException(429, "Too many failed attempts. Try again in 15 minutes.")
+        user = auth.authenticate(conn, creds.email, creds.password)
+        if user is None:
+            limiter.record_failure(creds.email)
+            # Same message for unknown email and wrong password, so the form
+            # can't be used to discover which emails have accounts.
+            raise HTTPException(401, "Incorrect email or password")
+        limiter.reset(creds.email)
+        response.set_cookie(
+            auth.SESSION_COOKIE, auth.create_session(conn, user["id"]),
+            max_age=auth.SESSION_TTL, path="/",
+            httponly=True,   # page scripts can't read it, so XSS can't steal it
+            samesite="lax",  # not sent on cross-site POST/DELETE, which blocks CSRF
+            # HTTPS-only in production. Behind Caddy, uvicorn's proxy-headers
+            # support makes the scheme "https" here.
+            secure=request.url.scheme == "https",
+        )
+        return {"email": user["email"]}
+
+    @app.post("/api/logout", status_code=204)
+    async def logout(request: Request):
+        auth.delete_session(conn, request.cookies.get(auth.SESSION_COOKIE))
+        response = Response(status_code=204)
+        response.delete_cookie(auth.SESSION_COOKIE, path="/")
+        return response
+
+    @app.get("/api/me")
+    async def me(request: Request):
+        return {"email": request.state.user["email"]}
+
+    # --- roster -------------------------------------------------------------
 
     def get_band_or_404(band_id):
         band = conn.execute("SELECT * FROM bands WHERE id = ?", (band_id,)).fetchone()
