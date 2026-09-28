@@ -52,3 +52,24 @@ def test_import_cli_refuses_to_overwrite(sample_xlsx, tmp_path, capsys):
     conn = db.connect(path)
     assert conn.execute("SELECT COUNT(*) FROM bands").fetchone()[0] == 3
     assert conn.execute("SELECT COUNT(*) FROM band_search").fetchone()[0] == 3
+
+
+def test_sql_export_round_trips(sample_xlsx, tmp_path):
+    """The --sql output (for Cloudflare D1) loads into an empty schema and
+    produces the same data and search index as a direct import."""
+    out = tmp_path / "roster.sql"
+    importer.main([str(sample_xlsx), "--sql", str(out)])
+    sql = out.read_text()
+    assert "BEGIN" not in sql and "COMMIT" not in sql  # D1 rejects explicit transactions
+
+    conn = db.connect(tmp_path / "fresh.db")
+    db.init_db(conn)
+    conn.executescript(sql)
+    conn.executescript(sql)  # re-running replaces rather than duplicates
+    assert conn.execute("SELECT COUNT(*) FROM bands").fetchone()[0] == 3
+    assert conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0] == 3
+    assert conn.execute("SELECT COUNT(*) FROM band_search").fetchone()[0] == 3
+    hits = conn.execute(
+        "SELECT b.name FROM band_search s JOIN bands b ON b.id = s.band_id WHERE band_search MATCH ?",
+        (db.fts_query("borne"),)).fetchall()
+    assert [h["name"] for h in hits] == ["Bedrumor"]

@@ -41,8 +41,12 @@ link type (for example, every band with no EPK).
 
 API docs are at http://127.0.0.1:8000/docs (sign in first).
 
-To host it privately with a shareable link, see [DEPLOY.md](DEPLOY.md).
-It covers a free-tier Google Cloud VM with HTTPS and nightly backups.
+To host it privately with a shareable link, there are two options:
+
+- [DEPLOY-CLOUDFLARE.md](DEPLOY-CLOUDFLARE.md): **recommended.** No server to maintain. It runs as a
+  Cloudflare Worker on D1 (hosted SQLite), and sign-in is handled by Cloudflare Access. The code is in `cloudflare/`.
+- [DEPLOY.md](DEPLOY.md): this Python app on a free-tier Google Cloud VM with its own login, HTTPS
+  and nightly backups.
 
 ## Layout
 

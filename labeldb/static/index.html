@@ -58,7 +58,7 @@
   .row:last-child { border-bottom: 0; }
   .inline-form { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
   .inline-form > * { flex: 1 1 120px; }
-  button.btn { font: inherit; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border);
+  .btn { font: inherit; padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border);
                background: var(--panel); color: var(--text); cursor: pointer; flex: 0 0 auto; }
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   button.danger { color: var(--danger); }
@@ -81,6 +81,7 @@
     <button id="tab-docs">Label documents</button>
   </nav>
   <span class="sub" id="whoami" style="margin-left:auto"></span>
+  <a class="btn" id="backup" hidden download style="text-decoration:none;font-size:13px">Download backup</a>
   <button class="btn" id="logout">Sign out</button>
 </header>
 
@@ -122,8 +123,10 @@ let selectedId = null;
 
 async function api(path, options = {}) {
   const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
-  if (res.status === 401) {  // session expired or signed out elsewhere
-    location.href = "/login";
+  if (res.status === 401 || res.status === 403) {
+    // Session expired or signed out elsewhere. Reloading "/" goes through
+    // whichever sign-in is in front (the app's /login, or Cloudflare Access).
+    location.href = "/";
     throw new Error("Not signed in");
   }
   if (!res.ok) {
@@ -325,11 +328,18 @@ function switchTab(docs) {
 $("tab-bands").onclick = () => switchTab(false);
 $("tab-docs").onclick = () => switchTab(true);
 
+let logoutUrl = null;  // set when a sign-in service (Cloudflare Access) owns logout
 $("logout").onclick = async () => {
+  if (logoutUrl) { location.href = logoutUrl; return; }
   await fetch("/api/logout", { method: "POST" });
   location.href = "/login";
 };
-api("/api/me").then(me => $("whoami").textContent = me.email);
+api("/api/me").then(me => {
+  $("whoami").textContent = me.email;
+  logoutUrl = me.logout_url || null;
+  // Only the Cloudflare version offers this; the server version has nightly backups.
+  if (me.backup_url) { $("backup").href = me.backup_url; $("backup").hidden = false; }
+});
 loadFacets().then(search);
 </script>
 </body>

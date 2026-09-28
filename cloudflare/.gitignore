@@ -1,0 +1,5 @@
+node_modules/
+.wrangler/
+.dev.vars
+# Generated from the spreadsheet: contains label data, never commit.
+roster*.sql

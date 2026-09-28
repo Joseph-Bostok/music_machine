@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "label-roster",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+
+  // The GUI is the same static files the Python app serves. run_worker_first
+  // sends every request, including pages, through the Worker's auth check.
+  "assets": {
+    "directory": "../labeldb/static",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "label-roster",
+      // Replace with the id printed by `npx wrangler d1 create label-roster`.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Filled in during setup (see DEPLOY-CLOUDFLARE.md, step 5). Neither is
+  // secret: the team domain is public and the AUD tag only identifies the app.
+  "vars": {
+    "TEAM_DOMAIN": "",
+    "POLICY_AUD": ""
+  },
+
+  "observability": { "enabled": true }
+}
